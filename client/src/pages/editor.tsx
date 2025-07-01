@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Code, FileText, Trash2, Moon, Sun } from "lucide-react";
+import { Code, FileText, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Monaco Editor types
@@ -18,7 +18,7 @@ const codeTemplates = {
 console.log("Hello, World!");
 
 function greetUser(name) {
-    return \`Hello, \${name}! Welcome to CodeCraft.\`;
+    return \`Hello, \${name}! Welcome to AeroCode.\`;
 }
 
 const message = greetUser("Developer");
@@ -28,7 +28,7 @@ console.log(message);`,
 print("Hello, World!")
 
 def greet_user(name):
-    return f"Hello, {name}! Welcome to CodeCraft."
+    return f"Hello, {name}! Welcome to AeroCode."
 
 message = greet_user("Developer")
 print(message)`,
@@ -42,7 +42,7 @@ print(message)`,
 </head>
 <body>
     <h1>Hello, World!</h1>
-    <p>Welcome to CodeCraft - your simple code editor!</p>
+    <p>Welcome to AeroCode - your simple code editor!</p>
 </body>
 </html>`,
 
@@ -78,7 +78,7 @@ public class HelloWorld {
     }
     
     public static String greetUser(String name) {
-        return "Hello, " + name + "! Welcome to CodeCraft.";
+        return "Hello, " + name + "! Welcome to AeroCode.";
     }
 }`,
 
@@ -89,7 +89,7 @@ public class HelloWorld {
 using namespace std;
 
 string greetUser(const string& name) {
-    return "Hello, " + name + "! Welcome to CodeCraft.";
+    return "Hello, " + name + "! Welcome to AeroCode.";
 }
 
 int main() {
@@ -113,13 +113,7 @@ const languageOptions = [
 
 export default function Editor() {
   const [currentLanguage, setCurrentLanguage] = useState("javascript");
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("codecraft-theme") === "vs-dark" || 
-             document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const isDarkMode = true; // AeroCode uses dark theme only
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
@@ -157,15 +151,11 @@ export default function Editor() {
     };
   }, []);
 
-  // Initialize theme
+  // Ensure dark theme is always applied
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    localStorage.setItem("codecraft-theme", isDarkMode ? "vs-dark" : "vs-light");
-  }, [isDarkMode]);
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("aerocode-theme", "vs-dark");
+  }, []);
 
   const initializeEditor = () => {
     if (!editorRef.current || !window.monaco) return;
@@ -175,7 +165,7 @@ export default function Editor() {
     const editorInstance = window.monaco.editor.create(editorRef.current, {
       value: codeTemplates[currentLanguage as keyof typeof codeTemplates],
       language: currentLanguage,
-      theme: isDarkMode ? 'vs-dark' : 'vs',
+      theme: 'vs-dark',
       automaticLayout: true,
       minimap: { enabled: window.innerWidth > 768 },
       scrollBeyondLastLine: false,
@@ -252,14 +242,7 @@ export default function Editor() {
     }
   };
 
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    
-    if (editor) {
-      window.monaco.editor.setTheme(newTheme ? 'vs-dark' : 'vs');
-    }
-  };
+  // Theme toggle removed - AeroCode uses dark theme only
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -285,7 +268,7 @@ export default function Editor() {
             <div className="w-8 h-8 bg-gradient-to-br from-[hsl(var(--code-primary))] to-blue-600 rounded-lg flex items-center justify-center">
               <Code className="text-white text-sm w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">CodeCraft</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">AeroCode</h1>
             <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
               Simple Code Editor
             </span>
@@ -326,15 +309,7 @@ export default function Editor() {
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleTheme}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-[hsl(var(--code-primary))]"
-                title="Toggle Theme"
-              >
-                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </Button>
+              {/* Theme toggle removed - AeroCode uses dark theme only */}
             </div>
           </div>
         </div>
@@ -353,11 +328,10 @@ export default function Editor() {
                     <Code className="text-white text-2xl w-8 h-8" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                    Welcome to CodeCraft
+                    Welcome to AeroCode
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    A simple, powerful code editor for learning and experimenting. 
-                    Select a language above and start coding!
+                    A simple, modern code editor designed for programmers who want a fast and distraction-free environment for writing and editing code.
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     {[

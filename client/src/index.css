@@ -69,6 +69,10 @@
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
   }
+  
+  html {
+    @apply dark;
+  }
 }
 
 /* Monaco Editor customizations */
