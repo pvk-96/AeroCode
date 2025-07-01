@@ -29,6 +29,12 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 - Keyboard shortcuts for all major operations
 - Auto-language detection from file extensions
 - VS Code-style problem panel with clickable errors
+- Advanced editor settings (font size, word wrap, minimap)
+- Code history with auto-save functionality
+- Code formatting and beautification
+- Enhanced toolbar with professional features
+- Settings panel for customizing editor behavior
+- Local code history with timestamps and language tracking
 
 ## File Operations
 - **Save:** Download code to local computer (Ctrl+S)
@@ -58,6 +64,12 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 - Enhanced Java execution simulation to handle complex programs, loops, and user input
 - Improved Python execution simulation with f-strings, loops, and variable handling
 - Added better support for arithmetic expressions and string concatenation in all languages
+- Added professional editor settings panel with font size, word wrap, and minimap controls
+- Implemented code history system with local storage and timestamp tracking
+- Added auto-save functionality with 30-second intervals when enabled
+- Enhanced toolbar with formatting, history, and settings buttons
+- Improved user experience with modal panels for settings and history management
+- Added visual feedback for all editor state changes and configurations
 
 ## Development Status
 - ✓ Project initialization

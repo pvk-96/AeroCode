@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Code, FileText, Trash2, Play, Terminal, X, Download, Upload, AlertCircle, CheckCircle } from "lucide-react";
+import { Code, FileText, Trash2, Play, Terminal, X, Download, Upload, AlertCircle, CheckCircle, Settings, History, ZoomIn, ZoomOut, RotateCcw, Clock, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Monaco Editor types
@@ -146,6 +146,14 @@ export default function Editor() {
   const [currentFileName, setCurrentFileName] = useState("");
   const [errors, setErrors] = useState<Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}>>([]);
   const [showErrorPanel, setShowErrorPanel] = useState(false);
+  const [fontSize, setFontSize] = useState(14);
+  const [wordWrap, setWordWrap] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [codeHistory, setCodeHistory] = useState<Array<{code: string, timestamp: Date, language: string}>>([]);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -195,12 +203,13 @@ export default function Editor() {
       language: currentLanguage,
       theme: 'vs-dark',
       automaticLayout: true,
-      minimap: { enabled: window.innerWidth > 768 },
+      minimap: { enabled: showMinimap },
       scrollBeyondLastLine: false,
-      fontSize: 14,
+      fontSize: fontSize,
       fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, monospace',
       lineNumbers: 'on',
       roundedSelection: false,
+      wordWrap: wordWrap ? 'on' : 'off',
       scrollbar: {
         verticalScrollbarSize: 8,
         horizontalScrollbarSize: 8
@@ -208,7 +217,12 @@ export default function Editor() {
       suggest: {
         showKeywords: true,
         showSnippets: true
-      }
+      },
+      bracketPairColorization: {
+        enabled: true
+      },
+      cursorBlinking: 'smooth',
+      smoothScrolling: true
     });
 
     // Event listeners
@@ -975,6 +989,92 @@ export default function Editor() {
     return errors;
   };
 
+  // Enhanced features functions
+  const increaseFontSize = () => {
+    if (fontSize < 24 && editor) {
+      const newSize = fontSize + 2;
+      setFontSize(newSize);
+      editor.updateOptions({ fontSize: newSize });
+    }
+  };
+
+  const decreaseFontSize = () => {
+    if (fontSize > 10 && editor) {
+      const newSize = fontSize - 2;
+      setFontSize(newSize);
+      editor.updateOptions({ fontSize: newSize });
+    }
+  };
+
+  const toggleWordWrap = () => {
+    if (editor) {
+      const newWrap = !wordWrap;
+      setWordWrap(newWrap);
+      editor.updateOptions({ wordWrap: newWrap ? 'on' : 'off' });
+    }
+  };
+
+  const toggleMinimap = () => {
+    if (editor) {
+      const newMinimap = !showMinimap;
+      setShowMinimap(newMinimap);
+      editor.updateOptions({ minimap: { enabled: newMinimap } });
+    }
+  };
+
+  const saveToHistory = () => {
+    if (editor) {
+      const code = editor.getValue();
+      const newEntry = {
+        code,
+        timestamp: new Date(),
+        language: currentLanguage
+      };
+      setCodeHistory(prev => [newEntry, ...prev.slice(0, 9)]); // Keep last 10 entries
+      setLastSaved(new Date());
+      toast({
+        title: "Saved to history",
+        description: "Code saved to local history.",
+      });
+    }
+  };
+
+  const loadFromHistory = (historyItem: {code: string, timestamp: Date, language: string}) => {
+    if (editor) {
+      editor.setValue(historyItem.code);
+      if (historyItem.language !== currentLanguage) {
+        setCurrentLanguage(historyItem.language);
+        window.monaco.editor.setModelLanguage(editor.getModel(), historyItem.language);
+      }
+      setShowHistoryPanel(false);
+      toast({
+        title: "Loaded from history",
+        description: `Code from ${historyItem.timestamp.toLocaleDateString()} loaded.`,
+      });
+    }
+  };
+
+  const formatCode = () => {
+    if (editor) {
+      editor.getAction('editor.action.formatDocument').run();
+      toast({
+        title: "Code formatted",
+        description: "Code has been automatically formatted.",
+      });
+    }
+  };
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!autoSave || !editor) return;
+
+    const interval = setInterval(() => {
+      saveToHistory();
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoSave, editor]);
+
   // File save functionality
   const saveFile = () => {
     if (!editor) return;
@@ -1194,6 +1294,42 @@ export default function Editor() {
                   <span className="ml-1 text-xs">{errors.length}</span>
                 )}
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={saveToHistory}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500"
+                title="Save to History"
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-500"
+                title="Code History"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={formatCode}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500"
+                title="Format Code"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-500"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
               {/* Theme toggle removed - AeroCode uses dark theme only */}
             </div>
           </div>
@@ -1376,6 +1512,141 @@ export default function Editor() {
             />
           </div>
         </div>
+
+        {/* Settings Panel */}
+        {showSettingsPanel && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-[hsl(var(--code-sidebar))] border border-gray-600 rounded-lg p-6 w-96">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-300">Editor Settings</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSettingsPanel(false)}
+                  className="p-1 text-gray-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-300">Font Size</span>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={decreaseFontSize}
+                      disabled={fontSize <= 10}
+                      className="p-1 text-gray-400 hover:text-white"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-gray-300 w-8 text-center">{fontSize}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={increaseFontSize}
+                      disabled={fontSize >= 24}
+                      className="p-1 text-gray-400 hover:text-white"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-300">Word Wrap</span>
+                  <Button
+                    variant={wordWrap ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleWordWrap}
+                    className="text-xs"
+                  >
+                    {wordWrap ? "On" : "Off"}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-300">Minimap</span>
+                  <Button
+                    variant={showMinimap ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleMinimap}
+                    className="text-xs"
+                  >
+                    {showMinimap ? "On" : "Off"}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-300">Auto-Save</span>
+                  <Button
+                    variant={autoSave ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAutoSave(!autoSave)}
+                    className="text-xs"
+                  >
+                    {autoSave ? "On" : "Off"}
+                  </Button>
+                </div>
+                
+                {lastSaved && (
+                  <div className="text-xs text-gray-400 flex items-center space-x-1">
+                    <Clock className="w-3 h-3" />
+                    <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* History Panel */}
+        {showHistoryPanel && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-[hsl(var(--code-sidebar))] border border-gray-600 rounded-lg p-6 w-[500px] max-h-[600px]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-300">Code History</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistoryPanel(false)}
+                  className="p-1 text-gray-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                {codeHistory.length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">No saved code in history</p>
+                ) : (
+                  codeHistory.map((item, index) => (
+                    <div
+                      key={index}
+                      className="border border-gray-600 rounded p-3 hover:bg-[hsl(var(--code-dark-light))] cursor-pointer"
+                      onClick={() => loadFromHistory(item)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-[hsl(var(--code-primary))]">
+                          {item.language.toUpperCase()}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {item.timestamp.toLocaleDateString()} {item.timestamp.toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <pre className="text-xs text-gray-300 bg-[hsl(var(--code-dark))] p-2 rounded overflow-hidden max-h-20">
+                        {item.code.substring(0, 200)}
+                        {item.code.length > 200 && '...'}
+                      </pre>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
