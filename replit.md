@@ -20,20 +20,25 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 
 ## Key Features
 - Multi-language syntax highlighting
+- Simple code execution with output display
 - File management (create, open, save, delete)
 - Clean, minimal UI with sidebar navigation
 - Dark theme only
 - Responsive design
 - Simple file operations
+- Run button with keyboard shortcuts (Ctrl+Enter)
 
 ## Recent Changes
 - Initial project setup with modern full-stack architecture
 - Implemented data schema for files and projects
 - Set up Monaco Editor integration
 - Created minimal UI inspired by Cursor IDE
+- Added simple code execution simulation with output panel
+- Implemented Run button and keyboard shortcuts for code execution
+- Added output panel that displays text-based results only
 
 ## Development Status
 - ✓ Project initialization
-- → Implementing core editor functionality
-- → Setting up file management system
-- → Creating responsive UI layout
+- ✓ Core editor functionality implemented
+- ✓ Simple output display system added
+- → Further refinements and feature additions as needed
