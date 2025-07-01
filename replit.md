@@ -15,7 +15,7 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 - **Backend**: Express.js (minimal API)
 - **Storage**: In-memory (MemStorage)
 - **Code Editor**: Monaco Editor for syntax highlighting
-- **Languages Supported**: Python, JavaScript, HTML, CSS, Java, C++, Go
+- **Languages Supported**: Python, JavaScript, HTML, CSS, Java, C++, C
 - **UI Framework**: Tailwind CSS + shadcn/ui components
 
 ## Key Features
@@ -51,6 +51,10 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 - Added real-time error detection for all supported languages
 - Implemented VS Code-style problem panel with clickable error navigation
 - Added error count display in header and status bar
+- Enhanced error detection with improved syntax checking for JavaScript
+- Added comprehensive C language support with syntax highlighting and error detection
+- Improved code execution simulation with better parsing for all languages
+- Added C-specific error detection for missing includes and syntax errors
 
 ## Development Status
 - ✓ Project initialization

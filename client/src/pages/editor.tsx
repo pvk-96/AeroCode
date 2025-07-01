@@ -99,6 +99,26 @@ int main() {
     cout << message << endl;
     
     return 0;
+}`,
+
+  c: `// Welcome to C!
+#include <stdio.h>
+#include <string.h>
+
+void greetUser(char* name, char* result) {
+    strcpy(result, "Hello, ");
+    strcat(result, name);
+    strcat(result, "! Welcome to AeroCode.");
+}
+
+int main() {
+    printf("Hello, World!\\n");
+    
+    char message[100];
+    greetUser("Developer", message);
+    printf("%s\\n", message);
+    
+    return 0;
 }`
 };
 
@@ -108,7 +128,8 @@ const languageOptions = [
   { value: "html", label: "HTML" },
   { value: "css", label: "CSS" },
   { value: "java", label: "Java" },
-  { value: "cpp", label: "C++" }
+  { value: "cpp", label: "C++" },
+  { value: "c", label: "C" }
 ];
 
 export default function Editor() {
@@ -288,6 +309,9 @@ export default function Editor() {
           case "cpp":
             result = simulateCppExecution(code);
             break;
+          case "c":
+            result = simulateCExecution(code);
+            break;
           default:
             result = `Code written in ${currentLanguage}`;
         }
@@ -303,23 +327,44 @@ export default function Editor() {
   const simulateJavaScriptExecution = (code: string): string => {
     const outputs: string[] = [];
     
-    // Simple simulation of console.log outputs
-    if (code.includes('console.log')) {
-      const matches = code.match(/console\.log\([^)]+\)/g);
-      if (matches) {
-        matches.forEach(match => {
-          const content = match.replace(/console\.log\(|\)/g, '').replace(/["'`]/g, '');
-          outputs.push(content);
-        });
+    // Simulate console.log outputs with better parsing
+    const consoleLogRegex = /console\.log\s*\(\s*([^)]+)\s*\)/g;
+    let match;
+    while ((match = consoleLogRegex.exec(code)) !== null) {
+      let content = match[1].trim();
+      
+      // Handle string literals
+      if (content.includes('"') || content.includes("'") || content.includes('`')) {
+        content = content.replace(/["'`]/g, '');
       }
+      
+      // Handle template literals with variables
+      if (content.includes('${')) {
+        content = content.replace(/\$\{[^}]+\}/g, 'Developer');
+      }
+      
+      // Handle variable references
+      if (content === 'message' && code.includes('greetUser')) {
+        content = 'Hello, Developer! Welcome to AeroCode.';
+      }
+      
+      outputs.push(content);
     }
     
-    if (code.includes('Hello, World!')) {
-      outputs.push('Hello, World!');
-    }
-    
-    if (code.includes('greetUser')) {
+    // Check for function calls and variable assignments
+    if (code.includes('greetUser') && !outputs.some(o => o.includes('Hello'))) {
       outputs.push('Hello, Developer! Welcome to AeroCode.');
+    }
+    
+    // Simulate basic arithmetic
+    const mathRegex = /console\.log\s*\(\s*(\d+\s*[+\-*/]\s*\d+)\s*\)/g;
+    while ((match = mathRegex.exec(code)) !== null) {
+      try {
+        const result = eval(match[1]);
+        outputs.push(result.toString());
+      } catch (e) {
+        outputs.push('Math error');
+      }
     }
     
     return outputs.length > 0 ? outputs.join('\n') : 'JavaScript code executed successfully';
@@ -367,16 +412,54 @@ export default function Editor() {
   const simulateCppExecution = (code: string): string => {
     const outputs: string[] = [];
     
-    if (code.includes('cout')) {
-      if (code.includes('Hello, World!')) {
-        outputs.push('Hello, World!');
+    // Simulate cout outputs
+    const coutRegex = /cout\s*<<\s*([^;]+)/g;
+    let match;
+    while ((match = coutRegex.exec(code)) !== null) {
+      let content = match[1].trim();
+      
+      // Handle string literals
+      if (content.includes('"')) {
+        content = content.replace(/"/g, '');
       }
-      if (code.includes('greetUser')) {
-        outputs.push('Hello, Developer! Welcome to AeroCode.');
+      
+      // Handle endl
+      content = content.replace(/\s*<<\s*endl/g, '');
+      
+      // Handle variable references
+      if (content === 'message' && code.includes('greetUser')) {
+        content = 'Hello, Developer! Welcome to AeroCode.';
       }
+      
+      outputs.push(content);
     }
     
     return outputs.length > 0 ? outputs.join('\n') : 'C++ code executed successfully';
+  };
+
+  const simulateCExecution = (code: string): string => {
+    const outputs: string[] = [];
+    
+    // Simulate printf outputs
+    const printfRegex = /printf\s*\(\s*"([^"]+)"/g;
+    let match;
+    while ((match = printfRegex.exec(code)) !== null) {
+      let content = match[1];
+      
+      // Handle format specifiers
+      content = content.replace(/%s/g, 'Developer');
+      content = content.replace(/%d/g, '42');
+      content = content.replace(/\\n/g, '');
+      
+      outputs.push(content);
+    }
+    
+    // Check for function calls
+    if (code.includes('greetUser') && !outputs.some(o => o.includes('Hello'))) {
+      outputs.push('Hello, Developer! Welcome to AeroCode.');
+    }
+    
+    return outputs.length > 0 ? outputs.join('\n') : 'C code executed successfully';
   };
 
   // Error detection functions
@@ -402,6 +485,9 @@ export default function Editor() {
       case 'cpp':
         foundErrors.push(...detectCppErrors(code));
         break;
+      case 'c':
+        foundErrors.push(...detectCErrors(code));
+        break;
     }
     
     setErrors(foundErrors);
@@ -416,40 +502,80 @@ export default function Editor() {
     
     lines.forEach((line, index) => {
       const lineNum = index + 1;
+      const trimmedLine = line.trim();
       
-      // Check for common syntax errors
-      if (line.includes('console.log(') && !line.includes(');')) {
+      // Check for unmatched parentheses
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+      if (openParens > closeParens) {
         errors.push({
           line: lineNum,
-          column: line.indexOf('console.log(') + 1,
-          message: 'Missing closing parenthesis and semicolon',
+          column: line.lastIndexOf('(') + 1,
+          message: 'Missing closing parenthesis',
           severity: 'error'
         });
       }
       
-      if (line.includes('function') && !line.includes('{') && !line.endsWith(';')) {
+      // Check for unmatched brackets
+      const openBrackets = (line.match(/\[/g) || []).length;
+      const closeBrackets = (line.match(/\]/g) || []).length;
+      if (openBrackets > closeBrackets) {
         errors.push({
           line: lineNum,
-          column: line.indexOf('function') + 1,
-          message: 'Function declaration missing opening brace',
+          column: line.lastIndexOf('[') + 1,
+          message: 'Missing closing bracket',
           severity: 'error'
         });
       }
       
-      if (line.includes('if') && line.includes('(') && !line.includes(')')) {
+      // Check for unmatched braces
+      const openBraces = (line.match(/\{/g) || []).length;
+      const closeBraces = (line.match(/\}/g) || []).length;
+      if (openBraces > closeBraces && !trimmedLine.endsWith('{')) {
         errors.push({
           line: lineNum,
-          column: line.indexOf('if') + 1,
-          message: 'Missing closing parenthesis in if statement',
+          column: line.lastIndexOf('{') + 1,
+          message: 'Missing closing brace',
           severity: 'error'
+        });
+      }
+      
+      // Check for missing quotes
+      const singleQuotes = (line.match(/'/g) || []).length;
+      const doubleQuotes = (line.match(/"/g) || []).length;
+      if (singleQuotes % 2 !== 0) {
+        errors.push({
+          line: lineNum,
+          column: line.lastIndexOf("'") + 1,
+          message: 'Missing closing single quote',
+          severity: 'error'
+        });
+      }
+      if (doubleQuotes % 2 !== 0) {
+        errors.push({
+          line: lineNum,
+          column: line.lastIndexOf('"') + 1,
+          message: 'Missing closing double quote',
+          severity: 'error'
+        });
+      }
+      
+      // Check for undefined variables (basic check)
+      if (line.includes('console.log(') && line.includes('undefined')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('undefined') + 1,
+          message: 'Variable may be undefined',
+          severity: 'warning'
         });
       }
       
       // Check for missing semicolons
-      if (line.trim() && !line.trim().endsWith(';') && !line.trim().endsWith('{') && !line.trim().endsWith('}') && 
-          !line.includes('//') && !line.includes('if') && !line.includes('for') && !line.includes('while') &&
-          !line.includes('function') && !line.includes('const') && !line.includes('let') && !line.includes('var')) {
-        if (line.includes('=') || line.includes('console.log') || line.includes('return')) {
+      if (trimmedLine && !trimmedLine.endsWith(';') && !trimmedLine.endsWith('{') && !trimmedLine.endsWith('}') && 
+          !line.includes('//') && !trimmedLine.startsWith('if') && !trimmedLine.startsWith('for') && 
+          !trimmedLine.startsWith('while') && !trimmedLine.startsWith('function') && !trimmedLine.startsWith('class')) {
+        if (line.includes('=') || line.includes('console.log') || line.includes('return') || line.includes('var ') || 
+            line.includes('let ') || line.includes('const ')) {
           errors.push({
             line: lineNum,
             column: line.length,
@@ -656,6 +782,63 @@ export default function Editor() {
     return errors;
   };
 
+  const detectCErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for missing includes
+      if (line.includes('printf') && !code.includes('#include <stdio.h>')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('printf') + 1,
+          message: 'Missing #include <stdio.h>',
+          severity: 'error'
+        });
+      }
+      
+      if (line.includes('strcpy') && !code.includes('#include <string.h>')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('strcpy') + 1,
+          message: 'Missing #include <string.h>',
+          severity: 'error'
+        });
+      }
+      
+      // Check for missing semicolons
+      if (line.trim() && !line.trim().endsWith(';') && !line.trim().endsWith('{') && 
+          !line.trim().endsWith('}') && !line.includes('//') && !line.includes('/*') &&
+          !line.includes('#include') && !line.includes('#define') && 
+          !line.includes('if ') && !line.includes('for ') && !line.includes('while ')) {
+        if (line.includes('=') || line.includes('printf') || line.includes('return')) {
+          errors.push({
+            line: lineNum,
+            column: line.length,
+            message: 'Missing semicolon',
+            severity: 'error'
+          });
+        }
+      }
+      
+      // Check for unmatched parentheses
+      const openParens = (line.match(/\(/g) || []).length;
+      const closeParens = (line.match(/\)/g) || []).length;
+      if (openParens > closeParens) {
+        errors.push({
+          line: lineNum,
+          column: line.lastIndexOf('(') + 1,
+          message: 'Missing closing parenthesis',
+          severity: 'error'
+        });
+      }
+    });
+    
+    return errors;
+  };
+
   // File save functionality
   const saveFile = () => {
     if (!editor) return;
@@ -667,7 +850,8 @@ export default function Editor() {
       html: '.html',
       css: '.css',
       java: '.java',
-      cpp: '.cpp'
+      cpp: '.cpp',
+      c: '.c'
     };
     
     const extension = fileExtensions[currentLanguage as keyof typeof fileExtensions] || '.txt';
@@ -714,7 +898,7 @@ export default function Editor() {
           'css': 'css',
           'java': 'java',
           'cpp': 'cpp',
-          'c': 'cpp'
+          'c': 'c'
         };
         
         const detectedLanguage = languageMap[extension || ''];
