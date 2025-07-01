@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Code, FileText, Trash2, Play, Terminal, X, Download, Upload } from "lucide-react";
+import { Code, FileText, Trash2, Play, Terminal, X, Download, Upload, AlertCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Monaco Editor types
@@ -123,6 +123,8 @@ export default function Editor() {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [currentFileName, setCurrentFileName] = useState("");
+  const [errors, setErrors] = useState<Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}>>([]);
+  const [showErrorPanel, setShowErrorPanel] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -197,6 +199,9 @@ export default function Editor() {
       const model = editorInstance.getModel();
       if (model) {
         setCharacterCount(model.getValueLength());
+        // Run error detection on content change
+        const code = model.getValue();
+        detectErrors(code, currentLanguage);
       }
     });
 
@@ -372,6 +377,283 @@ export default function Editor() {
     }
     
     return outputs.length > 0 ? outputs.join('\n') : 'C++ code executed successfully';
+  };
+
+  // Error detection functions
+  const detectErrors = (code: string, language: string) => {
+    const foundErrors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    
+    switch (language) {
+      case 'javascript':
+        foundErrors.push(...detectJavaScriptErrors(code));
+        break;
+      case 'python':
+        foundErrors.push(...detectPythonErrors(code));
+        break;
+      case 'html':
+        foundErrors.push(...detectHTMLErrors(code));
+        break;
+      case 'css':
+        foundErrors.push(...detectCSSErrors(code));
+        break;
+      case 'java':
+        foundErrors.push(...detectJavaErrors(code));
+        break;
+      case 'cpp':
+        foundErrors.push(...detectCppErrors(code));
+        break;
+    }
+    
+    setErrors(foundErrors);
+    if (foundErrors.length > 0 && !showErrorPanel) {
+      setShowErrorPanel(true);
+    }
+  };
+
+  const detectJavaScriptErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for common syntax errors
+      if (line.includes('console.log(') && !line.includes(');')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('console.log(') + 1,
+          message: 'Missing closing parenthesis and semicolon',
+          severity: 'error'
+        });
+      }
+      
+      if (line.includes('function') && !line.includes('{') && !line.endsWith(';')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('function') + 1,
+          message: 'Function declaration missing opening brace',
+          severity: 'error'
+        });
+      }
+      
+      if (line.includes('if') && line.includes('(') && !line.includes(')')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('if') + 1,
+          message: 'Missing closing parenthesis in if statement',
+          severity: 'error'
+        });
+      }
+      
+      // Check for missing semicolons
+      if (line.trim() && !line.trim().endsWith(';') && !line.trim().endsWith('{') && !line.trim().endsWith('}') && 
+          !line.includes('//') && !line.includes('if') && !line.includes('for') && !line.includes('while') &&
+          !line.includes('function') && !line.includes('const') && !line.includes('let') && !line.includes('var')) {
+        if (line.includes('=') || line.includes('console.log') || line.includes('return')) {
+          errors.push({
+            line: lineNum,
+            column: line.length,
+            message: 'Missing semicolon',
+            severity: 'warning'
+          });
+        }
+      }
+    });
+    
+    return errors;
+  };
+
+  const detectPythonErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for indentation errors
+      if (line.startsWith(' ') && !line.startsWith('    ')) {
+        const spaces = line.match(/^ +/)?.[0].length || 0;
+        if (spaces % 4 !== 0) {
+          errors.push({
+            line: lineNum,
+            column: 1,
+            message: 'Inconsistent indentation (should be 4 spaces)',
+            severity: 'warning'
+          });
+        }
+      }
+      
+      // Check for missing colons
+      if ((line.includes('if ') || line.includes('for ') || line.includes('while ') || 
+           line.includes('def ') || line.includes('class ')) && !line.includes(':')) {
+        errors.push({
+          line: lineNum,
+          column: line.length,
+          message: 'Missing colon at end of statement',
+          severity: 'error'
+        });
+      }
+      
+      // Check for unmatched parentheses
+      if (line.includes('print(') && !line.includes(')')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('print(') + 1,
+          message: 'Missing closing parenthesis',
+          severity: 'error'
+        });
+      }
+    });
+    
+    return errors;
+  };
+
+  const detectHTMLErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for unclosed tags
+      const openTags = line.match(/<[^/][^>]*>/g) || [];
+      const closeTags = line.match(/<\/[^>]*>/g) || [];
+      
+      openTags.forEach(tag => {
+        const tagName = tag.match(/<([^>\s]+)/)?.[1];
+        if (tagName && !['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tagName.toLowerCase())) {
+          const closeTag = `</${tagName}>`;
+          if (!line.includes(closeTag) && !closeTags.some(ct => ct.includes(tagName))) {
+            errors.push({
+              line: lineNum,
+              column: line.indexOf(tag) + 1,
+              message: `Missing closing tag for <${tagName}>`,
+              severity: 'warning'
+            });
+          }
+        }
+      });
+      
+      // Check for missing DOCTYPE
+      if (index === 0 && !line.toLowerCase().includes('<!doctype')) {
+        errors.push({
+          line: lineNum,
+          column: 1,
+          message: 'Missing DOCTYPE declaration',
+          severity: 'warning'
+        });
+      }
+    });
+    
+    return errors;
+  };
+
+  const detectCSSErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for missing semicolons in properties
+      if (line.includes(':') && !line.includes(';') && !line.includes('{') && 
+          !line.includes('}') && line.trim() && !line.includes('/*')) {
+        errors.push({
+          line: lineNum,
+          column: line.length,
+          message: 'Missing semicolon after CSS property',
+          severity: 'error'
+        });
+      }
+      
+      // Check for missing opening/closing braces
+      if (line.includes('{') && !line.includes('}')) {
+        const openBraces = (line.match(/{/g) || []).length;
+        const closeBraces = (line.match(/}/g) || []).length;
+        if (openBraces > closeBraces) {
+          errors.push({
+            line: lineNum,
+            column: line.lastIndexOf('{') + 1,
+            message: 'Missing closing brace',
+            severity: 'warning'
+          });
+        }
+      }
+    });
+    
+    return errors;
+  };
+
+  const detectJavaErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for missing semicolons
+      if (line.trim() && !line.trim().endsWith(';') && !line.trim().endsWith('{') && 
+          !line.trim().endsWith('}') && !line.includes('//') && !line.includes('/*') &&
+          !line.includes('class ') && !line.includes('public ') && !line.includes('private ') &&
+          !line.includes('if ') && !line.includes('for ') && !line.includes('while ')) {
+        if (line.includes('=') || line.includes('System.out') || line.includes('return')) {
+          errors.push({
+            line: lineNum,
+            column: line.length,
+            message: 'Missing semicolon',
+            severity: 'error'
+          });
+        }
+      }
+      
+      // Check for missing parentheses
+      if (line.includes('System.out.println(') && !line.includes(')')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('System.out.println(') + 1,
+          message: 'Missing closing parenthesis',
+          severity: 'error'
+        });
+      }
+    });
+    
+    return errors;
+  };
+
+  const detectCppErrors = (code: string): Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> => {
+    const errors: Array<{line: number, column: number, message: string, severity: 'error' | 'warning'}> = [];
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+      const lineNum = index + 1;
+      
+      // Check for missing includes
+      if (line.includes('cout') && !code.includes('#include <iostream>')) {
+        errors.push({
+          line: lineNum,
+          column: line.indexOf('cout') + 1,
+          message: 'Missing #include <iostream>',
+          severity: 'error'
+        });
+      }
+      
+      // Check for missing semicolons
+      if (line.trim() && !line.trim().endsWith(';') && !line.trim().endsWith('{') && 
+          !line.trim().endsWith('}') && !line.includes('//') && !line.includes('/*') &&
+          !line.includes('#include') && !line.includes('using ') && 
+          !line.includes('if ') && !line.includes('for ') && !line.includes('while ')) {
+        if (line.includes('=') || line.includes('cout') || line.includes('return')) {
+          errors.push({
+            line: lineNum,
+            column: line.length,
+            message: 'Missing semicolon',
+            severity: 'error'
+          });
+        }
+      }
+    });
+    
+    return errors;
   };
 
   // File save functionality
@@ -580,6 +862,18 @@ export default function Editor() {
                   <Terminal className="w-4 h-4" />
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowErrorPanel(!showErrorPanel)}
+                className={`p-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 ${errors.length > 0 ? 'text-red-500' : ''}`}
+                title={`${errors.length} Problems`}
+              >
+                {errors.length > 0 ? <AlertCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                {errors.length > 0 && (
+                  <span className="ml-1 text-xs">{errors.length}</span>
+                )}
+              </Button>
               {/* Theme toggle removed - AeroCode uses dark theme only */}
             </div>
           </div>
@@ -658,6 +952,75 @@ export default function Editor() {
           </div>
         )}
 
+        {/* Error Panel */}
+        {showErrorPanel && (
+          <div className="h-48 bg-[hsl(var(--code-dark-light))] border-t border-gray-700 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-2 bg-[hsl(var(--code-sidebar))] border-b border-gray-600">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-orange-400" />
+                <span className="text-sm font-medium text-gray-300">
+                  Problems ({errors.length})
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowErrorPanel(false)}
+                className="p-1 text-gray-400 hover:text-white"
+                title="Close Problems"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {errors.length === 0 ? (
+                <div className="p-4 text-center text-gray-400">
+                  <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                  <p>No problems detected</p>
+                </div>
+              ) : (
+                <div className="p-2">
+                  {errors.map((error, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start space-x-2 p-2 hover:bg-[hsl(var(--code-dark))] cursor-pointer rounded ${
+                        error.severity === 'error' ? 'border-l-2 border-red-500' : 'border-l-2 border-orange-500'
+                      }`}
+                      onClick={() => {
+                        if (editor) {
+                          editor.setPosition({ lineNumber: error.line, column: error.column });
+                          editor.focus();
+                        }
+                      }}
+                    >
+                      <div className="flex-shrink-0 mt-0.5">
+                        <AlertCircle className={`w-3 h-3 ${
+                          error.severity === 'error' ? 'text-red-500' : 'text-orange-500'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-300">{error.message}</p>
+                        <p className="text-xs text-gray-500">
+                          Line {error.line}, Column {error.column}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          error.severity === 'error' 
+                            ? 'bg-red-900 text-red-200' 
+                            : 'bg-orange-900 text-orange-200'
+                        }`}>
+                          {error.severity}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Status Bar */}
         <div className="bg-[hsl(var(--code-primary))] text-white px-4 py-2 text-sm flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -675,6 +1038,11 @@ export default function Editor() {
             <span className="text-blue-200">
               {characterCount} characters
             </span>
+            {errors.length > 0 && (
+              <span className="text-red-200">
+                🔴 {errors.length} problems
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-3">
             <span className="text-blue-200 hidden sm:inline">
