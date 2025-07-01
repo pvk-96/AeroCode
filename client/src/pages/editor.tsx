@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Code, FileText, Trash2, Play, Terminal, X } from "lucide-react";
+import { Code, FileText, Trash2, Play, Terminal, X, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Monaco Editor types
@@ -122,7 +122,9 @@ export default function Editor() {
   const [showOutput, setShowOutput] = useState(false);
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [currentFileName, setCurrentFileName] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Load Monaco Editor
@@ -372,6 +374,85 @@ export default function Editor() {
     return outputs.length > 0 ? outputs.join('\n') : 'C++ code executed successfully';
   };
 
+  // File save functionality
+  const saveFile = () => {
+    if (!editor) return;
+    
+    const code = editor.getValue();
+    const fileExtensions = {
+      javascript: '.js',
+      python: '.py',
+      html: '.html',
+      css: '.css',
+      java: '.java',
+      cpp: '.cpp'
+    };
+    
+    const extension = fileExtensions[currentLanguage as keyof typeof fileExtensions] || '.txt';
+    const fileName = currentFileName || `untitled${extension}`;
+    
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "File saved",
+      description: `${fileName} has been downloaded to your computer.`,
+    });
+  };
+
+  // File load functionality
+  const loadFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (editor) {
+        editor.setValue(content);
+        setCurrentFileName(file.name);
+        
+        // Auto-detect language based on file extension
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const languageMap: { [key: string]: string } = {
+          'js': 'javascript',
+          'py': 'python',
+          'html': 'html',
+          'css': 'css',
+          'java': 'java',
+          'cpp': 'cpp',
+          'c': 'cpp'
+        };
+        
+        const detectedLanguage = languageMap[extension || ''];
+        if (detectedLanguage && detectedLanguage !== currentLanguage) {
+          setCurrentLanguage(detectedLanguage);
+          window.monaco.editor.setModelLanguage(editor.getModel(), detectedLanguage);
+        }
+        
+        toast({
+          title: "File loaded",
+          description: `${file.name} has been loaded into the editor.`,
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input so the same file can be loaded again
+    event.target.value = '';
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -385,6 +466,16 @@ export default function Editor() {
         e.preventDefault();
         runCode();
       }
+      // Ctrl/Cmd + S for save file
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+      // Ctrl/Cmd + O for open file
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        loadFile();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -393,6 +484,14 @@ export default function Editor() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[hsl(var(--code-dark))] font-ui">
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileLoad}
+        accept=".js,.py,.html,.css,.java,.cpp,.c,.txt"
+        style={{ display: 'none' }}
+      />
       {/* Header */}
       <header className="bg-white dark:bg-[hsl(var(--code-dark-light))] border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -433,6 +532,24 @@ export default function Editor() {
                 title="Run Code (Ctrl+Enter)"
               >
                 <Play className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadFile}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-[hsl(var(--code-primary))]"
+                title="Open File (Ctrl+O)"
+              >
+                <Upload className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={saveFile}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-[hsl(var(--code-primary))]"
+                title="Save File (Ctrl+S)"
+              >
+                <Download className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -547,6 +664,11 @@ export default function Editor() {
             <span className="font-medium">
               {languageOptions.find(lang => lang.value === currentLanguage)?.label}
             </span>
+            {currentFileName && (
+              <span className="text-blue-200">
+                📄 {currentFileName}
+              </span>
+            )}
             <span className="text-blue-200">
               Ln {cursorPosition.line}, Col {cursorPosition.column}
             </span>
