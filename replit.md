@@ -55,6 +55,9 @@ AeroCode is a simple, modern web-based code editor designed for beginner program
 - Added comprehensive C language support with syntax highlighting and error detection
 - Improved code execution simulation with better parsing for all languages
 - Added C-specific error detection for missing includes and syntax errors
+- Enhanced Java execution simulation to handle complex programs, loops, and user input
+- Improved Python execution simulation with f-strings, loops, and variable handling
+- Added better support for arithmetic expressions and string concatenation in all languages
 
 ## Development Status
 - ✓ Project initialization

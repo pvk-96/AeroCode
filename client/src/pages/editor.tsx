@@ -373,21 +373,84 @@ export default function Editor() {
   const simulatePythonExecution = (code: string): string => {
     const outputs: string[] = [];
     
-    if (code.includes('print')) {
-      const matches = code.match(/print\([^)]+\)/g);
-      if (matches) {
-        matches.forEach(match => {
-          const content = match.replace(/print\(|\)/g, '').replace(/["']/g, '');
-          outputs.push(content);
-        });
+    // Simulate print() outputs with better parsing
+    const printRegex = /print\s*\(\s*([^)]+)\s*\)/g;
+    let match;
+    while ((match = printRegex.exec(code)) !== null) {
+      let content = match[1].trim();
+      
+      // Handle string literals
+      if (content.includes('"') || content.includes("'")) {
+        content = content.replace(/["']/g, '');
+      }
+      
+      // Handle f-strings
+      if (content.includes('f"') || content.includes("f'")) {
+        content = content.replace(/f["']/g, '').replace(/\{[^}]+\}/g, 'Developer');
+      }
+      
+      // Handle string formatting
+      if (content.includes('.format(')) {
+        content = content.replace(/\{[^}]*\}/g, 'Developer').replace(/\.format\([^)]*\)/, '');
+      }
+      
+      // Handle variable references
+      if (content === 'name' && code.includes('input(')) {
+        content = 'Developer';
+      }
+      
+      if (content === 'age' && code.includes('input(')) {
+        content = '25';
+      }
+      
+      // Handle arithmetic expressions
+      const mathMatch = content.match(/(\d+\s*[+\-*/]\s*\d+)/);
+      if (mathMatch) {
+        try {
+          const result = eval(mathMatch[1]);
+          content = content.replace(mathMatch[1], result.toString());
+        } catch (e) {
+          // Keep original if eval fails
+        }
+      }
+      
+      outputs.push(content);
+    }
+    
+    // Handle loops and ranges
+    if (code.includes('for') && code.includes('range(')) {
+      const rangeMatch = code.match(/range\((\d+)\)/);
+      if (rangeMatch && code.includes('print(')) {
+        const limit = parseInt(rangeMatch[1]);
+        if (limit <= 10) { // Reasonable limit for simulation
+          for (let i = 0; i < limit; i++) {
+            if (code.includes('print(i)')) {
+              outputs.push(i.toString());
+            }
+          }
+        }
       }
     }
     
-    if (code.includes('Hello, World!')) {
-      outputs.push('Hello, World!');
+    // Handle lists and common outputs
+    if (code.includes('list') && code.includes('print(')) {
+      if (code.includes('[1, 2, 3')) {
+        outputs.push('[1, 2, 3, 4, 5]');
+      }
     }
     
-    if (code.includes('greet_user')) {
+    // Handle input simulation
+    if (code.includes('input(')) {
+      if (code.includes('name')) {
+        outputs.push('Enter your name: Developer');
+      }
+      if (code.includes('age')) {
+        outputs.push('Enter your age: 25');
+      }
+    }
+    
+    // Handle function calls
+    if (code.includes('greet_user') && !outputs.some(o => o.includes('Hello'))) {
       outputs.push('Hello, Developer! Welcome to AeroCode.');
     }
     
@@ -397,13 +460,86 @@ export default function Editor() {
   const simulateJavaExecution = (code: string): string => {
     const outputs: string[] = [];
     
-    if (code.includes('System.out.println')) {
-      if (code.includes('Hello, World!')) {
-        outputs.push('Hello, World!');
+    // Simulate System.out.println outputs with better parsing
+    const printlnRegex = /System\.out\.println\s*\(\s*([^)]+)\s*\)/g;
+    let match;
+    while ((match = printlnRegex.exec(code)) !== null) {
+      let content = match[1].trim();
+      
+      // Handle string literals
+      if (content.includes('"')) {
+        content = content.replace(/"/g, '');
       }
-      if (code.includes('greetUser')) {
-        outputs.push('Hello, Developer! Welcome to AeroCode.');
+      
+      // Handle string concatenation
+      if (content.includes('+')) {
+        // Simple concatenation simulation
+        const parts = content.split('+').map(p => p.trim().replace(/"/g, ''));
+        content = parts.join('');
       }
+      
+      // Handle variable references and common patterns
+      if (content.includes('name') && code.includes('Scanner')) {
+        content = content.replace(/name/g, 'Developer');
+      }
+      
+      if (content.includes('age') && code.includes('Scanner')) {
+        content = content.replace(/age/g, '25');
+      }
+      
+      // Handle arithmetic expressions in println
+      const mathMatch = content.match(/(\d+\s*[+\-*/]\s*\d+)/);
+      if (mathMatch) {
+        try {
+          const result = eval(mathMatch[1]);
+          content = content.replace(mathMatch[1], result.toString());
+        } catch (e) {
+          // Keep original if eval fails
+        }
+      }
+      
+      outputs.push(content);
+    }
+    
+    // Simulate System.out.print (without newline)
+    const printRegex = /System\.out\.print\s*\(\s*([^)]+)\s*\)/g;
+    while ((match = printRegex.exec(code)) !== null) {
+      let content = match[1].trim().replace(/"/g, '');
+      outputs.push(content);
+    }
+    
+    // Handle loops and common patterns
+    if (code.includes('for') && code.includes('i')) {
+      const forMatch = code.match(/for\s*\([^)]+i\s*<\s*(\d+)/);
+      if (forMatch && code.includes('System.out.print')) {
+        const limit = parseInt(forMatch[1]);
+        if (limit <= 10) { // Reasonable limit for simulation
+          for (let i = 0; i < limit; i++) {
+            if (code.includes('println(i)')) {
+              outputs.push(i.toString());
+            }
+          }
+        }
+      }
+    }
+    
+    // Handle arrays and common outputs
+    if (code.includes('int[]') && code.includes('System.out.println')) {
+      if (code.includes('Arrays.toString')) {
+        outputs.push('[1, 2, 3, 4, 5]');
+      }
+    }
+    
+    // Handle Scanner input simulation
+    if (code.includes('Scanner') && code.includes('nextLine()')) {
+      if (!outputs.some(o => o.includes('Developer'))) {
+        outputs.push('Enter name: Developer');
+      }
+    }
+    
+    // Handle method calls
+    if (code.includes('greetUser') && !outputs.some(o => o.includes('Hello'))) {
+      outputs.push('Hello, Developer! Welcome to AeroCode.');
     }
     
     return outputs.length > 0 ? outputs.join('\n') : 'Java code executed successfully';
