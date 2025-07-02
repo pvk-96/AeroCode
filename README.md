@@ -45,7 +45,7 @@ Before running the app locally, ensure you have the following installed:
    ```bash
    npm run dev
 4. Open the app in your Browser:
-   In Browser: http://localhost:3000
+   In Browser: http://localhost:3000 (or the port provided)
 Now you can start using the app in your Browser.
 
 --- 
